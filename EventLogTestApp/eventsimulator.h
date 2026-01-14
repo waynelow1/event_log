@@ -14,8 +14,9 @@ public:
     explicit EventSimulator(QObject *parent = nullptr);
 
 public slots:
-    void start(int interval = 1000);
+    void start();
     void stop();
+    void setInterval(int interval);
 
 signals:
     void newEvent(const QDateTime timestamp,
@@ -27,7 +28,7 @@ private slots:
     void generateEvent();
 
 private:
-    QTimer *m_timer = nullptr;
+    QTimer *m_timer {nullptr};
 };
 
 #endif // EVENTSIMULATOR_H

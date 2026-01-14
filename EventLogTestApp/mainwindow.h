@@ -20,9 +20,6 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void createAndStartThread();
-    void stopAndDeleteThread();
-
 private slots:
     void on_actionShow_EventLog_Widget_triggered();
     void on_addEventLogBtn_clicked();

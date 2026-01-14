@@ -2,22 +2,23 @@
 
 EventSimulator::EventSimulator(QObject *parent) : QObject(parent)
 {
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &EventSimulator::generateEvent);
 }
 
-void EventSimulator::start(int interval)
+void EventSimulator::start()
 {
-    if (!m_timer)
-    {
-        m_timer = new QTimer(this);
-        connect(m_timer, &QTimer::timeout, this, &EventSimulator::generateEvent);
-    }
-
-    m_timer->start(interval);
+    m_timer->start();
 }
 
 void EventSimulator::stop()
 {
     m_timer->stop();
+}
+
+void EventSimulator::setInterval(int interval)
+{
+    m_timer->setInterval(interval);
 }
 
 void EventSimulator::generateEvent()

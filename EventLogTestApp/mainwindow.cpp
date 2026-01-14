@@ -7,55 +7,34 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // for testing manual add event
     QObject::connect(this, &MainWindow::addEvent, ui->eventLogWidget, &EventLogWidget::addEvent, Qt::QueuedConnection);
 
-    ui->stopThreadBtn->setEnabled(false);
+    // worker event timer object
+    worker = new EventSimulator;    // wrong to use --> new EventTimer(this);
+    connect(worker, &EventSimulator::newEvent, ui->eventLogWidget, &EventLogWidget::addEvent, Qt::QueuedConnection);
+    worker->setInterval(500);
+
+    // our thread
+    thread = new QThread(this);
+    worker->moveToThread(thread);
+
+    connect(thread, &QThread::started, worker, &EventSimulator::start);
+    connect(thread, &QThread::finished, worker, &EventSimulator::stop);
 }
 
 MainWindow::~MainWindow()
 {
-    stopAndDeleteThread();
+    // on exit application stop thread
+    worker->deleteLater();
+    thread->quit();
+    thread->wait();
+
+    delete thread;
+    thread = nullptr;
+    worker = nullptr;
 
     delete ui;
-}
-
-void MainWindow::createAndStartThread()
-{
-    // Ignore if already running
-    if (thread && thread->isRunning())
-        return;
-
-    // create Event Simulator in another thread
-    worker = new EventSimulator;
-    connect(worker, &EventSimulator::newEvent, ui->eventLogWidget, &EventLogWidget::addEvent, Qt::QueuedConnection);
-
-    // Create new thread
-    thread = new QThread(this);
-
-    // Move worker to new thread
-    worker->moveToThread(thread);
-
-    connect(thread, &QThread::started, worker, [this]() {
-        worker->start(500);
-    });
-
-    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-
-    thread->start();
-}
-
-void MainWindow::stopAndDeleteThread()
-{
-    if (thread->isRunning())
-    {
-        QMetaObject::invokeMethod(worker, "stop", Qt::QueuedConnection);
-        thread->quit();
-        thread->wait();
-        // Thread will delete itself (deleteLater)
-        worker->deleteLater();
-        worker = nullptr;
-        thread = nullptr;
-    }
 }
 
 void MainWindow::on_actionShow_EventLog_Widget_triggered()
@@ -70,18 +49,19 @@ void MainWindow::on_addEventLogBtn_clicked()
 
 void MainWindow::on_startThreadBtn_clicked()
 {
-    createAndStartThread();
+    if (thread->isRunning())
+        return;
 
-    ui->startThreadBtn->setEnabled(false);
-    ui->stopThreadBtn->setEnabled(true);
+    thread->start();
 }
 
 void MainWindow::on_stopThreadBtn_clicked()
 {
-    stopAndDeleteThread();
+    if (!thread->isRunning())
+        return;
 
-    ui->startThreadBtn->setEnabled(true);
-    ui->stopThreadBtn->setEnabled(false);
+    thread->quit();
+    thread->wait();
 }
 
 
