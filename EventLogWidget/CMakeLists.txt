@@ -4,7 +4,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 
-find_package(Qt6 REQUIRED COMPONENTS Core Sql)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Sql)
 
 add_library (EventLogWidget STATIC
     eventlogwidget.cpp
