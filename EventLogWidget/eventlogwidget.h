@@ -19,8 +19,10 @@
 #include <QTimer>
 #include <QMessageBox>
 
+#include "eventlogmodel.h"
 #include "DisplayViewDelegate.h"
 #include "EventFilterProxy.h"
+
 
 
 namespace Ui {
@@ -63,7 +65,7 @@ private:
     Ui::EventLogWidget *ui;
 
     // database-based table model
-    QSqlTableModel *m_sqlTableModel;
+    EventLogModel *m_eventModel;
 
     // filter proxy
     QSortFilterProxyModel *m_filterProxy;

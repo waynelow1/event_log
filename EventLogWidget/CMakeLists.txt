@@ -12,6 +12,7 @@ add_library (EventLogWidget STATIC
     eventlogwidget.ui
     EventFilterProxy.h
     DisplayViewDelegate.h
+    eventlogmodel.h eventlogmodel.cpp
 )
 
 
