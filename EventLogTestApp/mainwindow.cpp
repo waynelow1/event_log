@@ -7,6 +7,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->eventLogWidget->initializeModel("D:\\EventLog\\eventlog.sqlite", "eventlog_connection");
+    ui->eventLogWidget->setFlushIntervalMs(100);
+    ui->eventLogWidget->setMaxBatchSize(300);
+
     // for testing manual add event
     QObject::connect(this, &MainWindow::addEvent, ui->eventLogWidget, &EventLogWidget::addEvent, Qt::QueuedConnection);
 

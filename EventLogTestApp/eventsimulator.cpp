@@ -35,15 +35,15 @@ void EventSimulator::generateEvent()
     QStringList sources = {"Sensor", "Camera", "Motor", "PLC", "System"};
     QString source = sources.at(QRandomGenerator::global()->bounded(sources.size()));
 
-    // Random message
+    // Random message with commas
     QStringList messages = {
-        "Startup OK",
-        "Temperature high",
-        "Link lost",
-        "Overcurrent detected",
-        "Reconnected",
-        "Heartbeat",
-        "Timeout waiting reply"
+        "Startup OK, system ready",
+        "Temperature high, value exceeded limit",
+        "Link lost, retrying connection",
+        "Overcurrent detected, motor stopped",
+        "Reconnected, normal operation resumed",
+        "Heartbeat received, all good",
+        "Timeout waiting reply, PLC not responding"
     };
     QString message = messages.at(QRandomGenerator::global()->bounded(messages.size()));
 

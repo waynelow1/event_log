@@ -98,6 +98,12 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="eventLogDockWidget">
+   <property name="minimumSize">
+    <size>
+     <width>918</width>
+     <height>46</height>
+    </size>
+   </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
    </property>
@@ -113,7 +119,7 @@
       <widget class="EventLogWidget" name="eventLogWidget" native="true">
        <property name="minimumSize">
         <size>
-         <width>600</width>
+         <width>900</width>
          <height>0</height>
         </size>
        </property>

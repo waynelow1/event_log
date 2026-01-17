@@ -1,95 +1,119 @@
 #include "eventlogmodel.h"
 
-EventLogModel::EventLogModel(QObject *parent)
-    : QObject{parent}
+EventLogModel::EventLogModel(const QString& databasePath,
+                             const QString& connectionName,
+                             QObject* parent)
+    : QObject(parent),
+    m_connectionName(connectionName)
 {
-    // Initialize DB connection
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName("eventlog.db");
-    if (!db.open())
+    QSqlDatabase db;
+
+    if (QSqlDatabase::contains(m_connectionName))
     {
-        qDebug() << "DB open failed:" << db.lastError();
+        db = QSqlDatabase::database(m_connectionName);
+    }
+    else
+    {
+        db = QSqlDatabase::addDatabase("QSQLITE", m_connectionName);
+        db.setDatabaseName(databasePath);
+        db.open();
+        QSqlQuery pragmaQuery(db);
+        pragmaQuery.exec("PRAGMA journal_mode=WAL;");
+        pragmaQuery.exec("PRAGMA synchronous=NORMAL;");
     }
 
-    // Create table
-    QSqlQuery q;
-    q.exec("CREATE TABLE IF NOT EXISTS events ("
-           "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-           "Timestamp TEXT,"
-           "Severity TEXT,"
-           "Source TEXT,"
-           "Message TEXT"
-           ")");
+    QSqlQuery q(db);
+    q.exec(R"(
+        CREATE TABLE IF NOT EXISTS events (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Timestamp TEXT,
+            Severity TEXT,
+            Source TEXT,
+            Message TEXT
+        )
+    )");
 
-    // Model setup
     m_sqlTableModel = new QSqlTableModel(this, db);
     m_sqlTableModel->setTable("events");
-    m_sqlTableModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
     m_sqlTableModel->select();
 }
 
-bool EventLogModel::addEvent(const QDateTime &timestamp,
-                             const QString &severity,
-                             const QString &source,
-                             const QString &message)
+bool EventLogModel::insertBatch(const QVector<EventLogEntry>& batch)
 {
-    QSqlRecord record = m_sqlTableModel->record();
-    record.setValue("Timestamp", timestamp.toString("yyyy-MM-dd HH:mm:ss"));
-    record.setValue("Severity", severity);
-    record.setValue("Source", source);
-    record.setValue("Message", message);
+    if (batch.isEmpty())
+        return true;
 
-    if (!m_sqlTableModel->insertRecord(-1, record))
+    QSqlDatabase db = m_sqlTableModel->database();
+    QSqlQuery q(db);
+
+    db.transaction();
+
+    q.prepare(R"(
+        INSERT INTO events (Timestamp, Severity, Source, Message)
+        VALUES (:ts, :sev, :src, :msg)
+    )");
+
+    for (const auto& e : batch)
     {
-        qDebug() << "Insert failed:" << m_sqlTableModel->lastError();
-        return false;
+        q.bindValue(":ts", e.timestamp.toString("yyyy-MM-dd HH:mm:ss"));
+        q.bindValue(":sev", e.severity);
+        q.bindValue(":src", e.source);
+        q.bindValue(":msg", e.message);
+
+        if (!q.exec())
+        {
+            db.rollback();
+            return false;
+        }
     }
 
-    return m_sqlTableModel->submitAll();
+    db.commit();
+    m_sqlTableModel->select();
+    return true;
+}
+
+bool EventLogModel::addEvent(const QDateTime& ts,
+                             const QString& sev,
+                             const QString& src,
+                             const QString& msg)
+{
+    return insertBatch({ { ts, sev, src, msg } });
 }
 
 void EventLogModel::removeEvent(int index)
 {
-    m_sqlTableModel->removeRow(index);
-    m_sqlTableModel->submitAll();
+    QSqlQuery q(m_sqlTableModel->database());
+    q.prepare("DELETE FROM events WHERE ID=:id");
+    q.bindValue(":id", m_sqlTableModel->record(index).value("ID"));
+    q.exec();
+    m_sqlTableModel->select();
 }
 
 void EventLogModel::clearAll()
 {
-    QSqlQuery q("DELETE FROM events");
+    QSqlQuery q(m_sqlTableModel->database());
+    q.exec("DELETE FROM events");
+    q.exec("VACUUM");
     m_sqlTableModel->select();
 }
 
-bool EventLogModel::exportCSV(const QString &filePath)
+bool EventLogModel::exportCSV(const QString& filePath)
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    QFile f(filePath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
 
-    QTextStream stream(&file);
-    stream << "Timestamp,Severity,Source,Message\n";
+    QTextStream s(&f);
+    s << "Timestamp,Severity,Source,Message\n";
 
-    QStringList lines;
-    lines.reserve(100000);
+    QSqlQuery q(m_sqlTableModel->database());
+    q.exec("SELECT Timestamp,Severity,Source,Message FROM events ORDER BY ID DESC");
 
-    QSqlQuery query("SELECT Timestamp, Severity, Source, Message "
-                    "FROM events ORDER BY ID DESC LIMIT 100000");
-    if (!query.isActive())
-    {
-        qDebug() << "Query failed:" << query.lastError();
-        return false;
-    }
+    while (q.next())
+        s << csvEscape(q.value(0).toString()) << ","
+          << csvEscape(q.value(1).toString()) << ","
+          << csvEscape(q.value(2).toString()) << ","
+          << csvEscape(q.value(3).toString()) << "\n";
 
-    while (query.next())
-    {
-        QString ts  = query.value(0).toString().replace(',', ' ');
-        QString sev = query.value(1).toString().replace(',', ' ');
-        QString src = query.value(2).toString().replace(',', ' ');
-        QString msg = query.value(3).toString().replace(',', ' ');
-
-        lines << QString("%1,%2,%3,%4").arg(ts).arg(sev).arg(src).arg(msg);
-    }
-
-    stream << lines.join("\n") << "\n";
     return true;
 }

@@ -7,30 +7,30 @@ EventLogWidget::EventLogWidget(QWidget *parent)
 {
     ui->setupUi(this);
 
-    m_eventModel = new EventLogModel(this);
-
-    // proxy filter
-    m_filterProxy = new EventFilterProxy(this);
-    m_filterProxy->setSourceModel(m_eventModel->model());
-    m_filterProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    m_filterProxy->setSortCaseSensitivity(Qt::CaseInsensitive);
-    ui->eventLogTableView->setModel(m_filterProxy);
+    m_controller = new EventLogController(this);
 
     // UI filter controls
     ui->severityFilterCombo->addItems({"All", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"});
 
-    auto updateFilter = [this]() {
-        auto f = static_cast<EventFilterProxy*>(m_filterProxy);
-        f->sevFilter = ui->severityFilterCombo->currentText();
-        f->srcFilter = ui->sourceFilterEdit->text();
-        f->msgFilter = ui->messageFilterEdit->text();
-        f->invalidate();   //re-evaluate which rows should be shown in the table
-    };
+    connect(ui->severityFilterCombo, &QComboBox::currentTextChanged, m_controller, &EventLogController::setSeverityFilter);
+    connect(ui->sourceFilterEdit, &QLineEdit::textChanged, m_controller, &EventLogController::setSourceFilter);
+    connect(ui->messageFilterEdit, &QLineEdit::textChanged, m_controller, &EventLogController::setMessageFilter);
+    connect(ui->fromDateTimeEdit, &QDateTimeEdit::dateTimeChanged, m_controller, &EventLogController::setFromTimestamp);
+    connect(ui->toDateTimeEdit, &QDateTimeEdit::dateTimeChanged, m_controller, &EventLogController::setToTimestamp);
 
-    connect(ui->severityFilterCombo, &QComboBox::currentTextChanged, this, updateFilter);
-    connect(ui->sourceFilterEdit, &QLineEdit::textChanged, this, updateFilter);
-    connect(ui->messageFilterEdit, &QLineEdit::textChanged, this, updateFilter);
+    ui->fromDateTimeEdit->setDateTime(QDateTime::currentDateTime().addDays(-1));
+    ui->toDateTimeEdit->setDateTime(QDateTime::currentDateTime().addDays(1));
+}
 
+EventLogWidget::~EventLogWidget()
+{
+    delete ui;
+}
+
+void EventLogWidget::initializeModel(const QString &databasePath, const QString connectionName)
+{
+    m_controller->initializeDatabase(databasePath, connectionName);
+    ui->eventLogTableView->setModel(m_controller->model());
 
     // prevent items editable
     ui->eventLogTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -77,20 +77,26 @@ EventLogWidget::EventLogWidget(QWidget *parent)
 )");
 
     // set item delegate to color rows with Error in Red
-    //ui->eventLogTableView->setColumnHidden(0, true);
-
     delegate = new DisplayViewDelegate(ui->eventLogTableView);
     ui->eventLogTableView->setItemDelegate(delegate);
 
     // make table view scroll automatically to the last row when adding items
-    connect(m_eventModel->model(), &QSqlTableModel::rowsInserted, this, [this]() {
-        QTimer::singleShot(0, ui->eventLogTableView, &QTableView::scrollToBottom);
-    });
+    connect(m_controller, &EventLogController::rowsAdded,
+            this, [this]() {
+                QTimer::singleShot(0,
+                                   ui->eventLogTableView,
+                                   &QTableView::scrollToBottom);
+            });
 }
 
-EventLogWidget::~EventLogWidget()
+void EventLogWidget::setFlushIntervalMs(int newFlushIntervalMs)
 {
-    delete ui;
+    m_controller->setFlushIntervalMs(newFlushIntervalMs);
+}
+
+void EventLogWidget::setMaxBatchSize(int newMaxBatchSize)
+{
+    m_controller->setMaxBatchSize(newMaxBatchSize);
 }
 
 QString EventLogWidget::eventTypeToString(EVENT_TYPE eventType) const
@@ -105,7 +111,7 @@ QString EventLogWidget::eventTypeToString(EVENT_TYPE eventType) const
         return QStringLiteral("WARNING");
     case EVENT_TYPE::Error:
         return QStringLiteral("ERROR");
-    case EVENT_TYPE::Critital:
+    case EVENT_TYPE::Critical:
         return QStringLiteral("CRITICAL");
     }
 
@@ -114,45 +120,47 @@ QString EventLogWidget::eventTypeToString(EVENT_TYPE eventType) const
 
 void EventLogWidget::addEvent(const QDateTime &timestamp, const EVENT_TYPE &eventType, const QString &source, const QString &message)
 {
-    m_eventModel->addEvent(timestamp, eventTypeToString(eventType), source, message);
+    m_controller->addEvent(timestamp, eventTypeToString(eventType), source, message);
 }
 
 void EventLogWidget::removeEventItem(int index)
 {
-    m_eventModel->removeEvent(index);
+    m_controller->removeEvent(index);
 }
 
 void EventLogWidget::clearEventLog()
 {
-    m_eventModel->clearAll();
+    m_controller->clearAll();
+}
+
+bool EventLogWidget::exportCSV(const QString &filePath)
+{
+    return m_controller->exportCSV(filePath);
 }
 
 void EventLogWidget::on_clearEventLogBtn_clicked()
 {
 
     auto reply = QMessageBox::question(this,
-                                     tr("Clear Event Log"), tr("Are you sure you want to delete ALL event logs?\nThis operation cannot be undone."),
-                                     QMessageBox::Yes | QMessageBox::No,
-                                     QMessageBox::No);
+                                       tr("Clear Event Log"), tr("Are you sure you want to delete ALL event logs?\nThis operation cannot be undone."),
+                                       QMessageBox::Yes | QMessageBox::No,
+                                       QMessageBox::No);
     if (reply == QMessageBox::Yes)
     {
         clearEventLog();
     }
 }
 
-bool EventLogWidget::exportCSV(const QString &filePath)
-{
-    return m_eventModel->exportCSV(filePath);
-}
-
 void EventLogWidget::on_removeLogItemBtn_clicked()
 {
-    QModelIndex index = ui->eventLogTableView->currentIndex();
+    QModelIndex proxyIndex = ui->eventLogTableView->currentIndex();
+    if (!proxyIndex.isValid())
+        return;
 
-    if (index.isValid())
-    {
-        removeEventItem(index.row());
-    }
+    // Controller expects SOURCE row
+    QModelIndex sourceIndex = qobject_cast<QSortFilterProxyModel*>(ui->eventLogTableView->model())->mapToSource(proxyIndex);
+
+    m_controller->removeEvent(sourceIndex.row());
 }
 
 void EventLogWidget::on_exportCSVBtn_clicked()
@@ -161,6 +169,11 @@ void EventLogWidget::on_exportCSVBtn_clicked()
     if (filePath.isEmpty())
         return;  // User cancelled
 
-    exportCSV(filePath);
+    bool ok = exportCSV(filePath);
+
+    if (!ok)
+    {
+        QMessageBox::warning(this, tr("Export Failed"), tr("Unable to write CSV file."));
+    }
 }
 

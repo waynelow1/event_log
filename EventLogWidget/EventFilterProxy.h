@@ -2,41 +2,40 @@
 #define EVENTFILTERPROXY_H
 
 #include <QSortFilterProxyModel>
+#include <QSqlTableModel>
+#include <QSqlQuery>
+#include <QSqlRecord>
+#include <QFile>
+#include <QDateTime>
+#include "utils.h"
 
 
 class EventFilterProxy : public QSortFilterProxyModel
 {
+     Q_OBJECT
 public:
-    EventFilterProxy(QObject* parent=nullptr)
+    explicit EventFilterProxy(QObject* parent=nullptr)
         : QSortFilterProxyModel(parent) {}
 
-    QString sevFilter;
-    QString srcFilter;
-    QString msgFilter;
+    bool exportCSVFiltered(const QString &filePath) const;
+    void setSeverityFilter(const QString& severity);
+    void setSourceFilter(const QString& source);
+    void setMessageFilter(const QString& message);
+    void setFromTimestamp(const QDateTime& from);
+    void setToTimestamp(const QDateTime& to);
+    bool hasFilter() const;
+    bool hasDateFilter() const;
 
 protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
-    {
-        auto model = sourceModel();
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
 
-        QString sev = model->index(sourceRow, 2, sourceParent).data().toString(); // Severity
-        QString src = model->index(sourceRow, 3, sourceParent).data().toString(); // Source
-        QString msg = model->index(sourceRow, 4, sourceParent).data().toString(); // Message
+private:
+    QString m_sevFilter;
+    QString m_srcFilter;
+    QString m_msgFilter;
 
-        // Severity filter (exact match unless "All")
-        if (!sevFilter.isEmpty() && sevFilter != "All" && sev != sevFilter)
-            return false;
-
-        // Source substring match
-        if (!srcFilter.isEmpty() && !src.contains(srcFilter, Qt::CaseInsensitive))
-            return false;
-
-        // Message substring match
-        if (!msgFilter.isEmpty() && !msg.contains(msgFilter, Qt::CaseInsensitive))
-            return false;
-
-        return true;
-    }
+    QDateTime m_fromTs;
+    QDateTime m_toTs;
 };
 
 

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QThread>
+#include <QStandardPaths>
 #include "eventlogwidget.h"
 #include "eventsimulator.h"
 

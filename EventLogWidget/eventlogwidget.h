@@ -3,26 +3,10 @@
 
 #include <QWidget>
 #include <QFileDialog>
-#include <QDebug>
-#include <QFileDialog>
-
-#include <QSqlDatabase>
-#include <QSqlQuery>
-#include <QSqlTableModel>
-#include <QSqlError>
-#include <QSqlRecord>
-#include <QSortFilterProxyModel>
-
-#include <QStyledItemDelegate>
-#include <QPainter>
-#include <QApplication>
-#include <QTimer>
 #include <QMessageBox>
 
-#include "eventlogmodel.h"
+#include "eventlogcontroller.h"
 #include "DisplayViewDelegate.h"
-#include "EventFilterProxy.h"
-
 
 
 namespace Ui {
@@ -40,12 +24,16 @@ public:
         Info,
         Warning,
         Error,
-        Critital
+        Critical
     };
     Q_ENUM(EVENT_TYPE)
 
     explicit EventLogWidget(QWidget *parent = nullptr);
     ~EventLogWidget();
+
+    void initializeModel(const QString &databasePath, const QString connectionName);
+    void setFlushIntervalMs(int newFlushIntervalMs);
+    void setMaxBatchSize(int newMaxBatchSize);
 
 public slots:
     void addEvent(const QDateTime &timestamp, const EVENT_TYPE &eventType, const QString &source, const QString &message);
@@ -59,16 +47,11 @@ private slots:
     void on_exportCSVBtn_clicked();
 
 private:
-    QString eventTypeToString(EVENT_TYPE eventType) const;
-
-private:
     Ui::EventLogWidget *ui;
 
-    // database-based table model
-    EventLogModel *m_eventModel;
+    QString eventTypeToString(EVENT_TYPE eventType) const;
 
-    // filter proxy
-    QSortFilterProxyModel *m_filterProxy;
+    EventLogController* m_controller {nullptr};
 
     // error display delegate
     DisplayViewDelegate *delegate {nullptr};
