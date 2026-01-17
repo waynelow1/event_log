@@ -6,6 +6,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    showMaximized();
 
     ui->eventLogWidget->initializeModel("D:\\EventLog\\eventlog.sqlite", "eventlog_connection");
     ui->eventLogWidget->setFlushIntervalMs(100);
