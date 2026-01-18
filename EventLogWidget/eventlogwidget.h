@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QFileDialog>
+#include <QScrollBar>
 #include <QMessageBox>
 
 #include "eventlogcontroller.h"
@@ -34,6 +35,7 @@ public:
     void initializeModel(const QString &databasePath, const QString connectionName);
     void setFlushIntervalMs(int newFlushIntervalMs);
     void setMaxBatchSize(int newMaxBatchSize);
+    void setMaxVisibleRows(int rows);
 
 public slots:
     void addEvent(const QDateTime &timestamp, const EVENT_TYPE &eventType, const QString &source, const QString &message);
@@ -45,6 +47,8 @@ private slots:
     void on_clearEventLogBtn_clicked();
     void on_removeLogItemBtn_clicked();
     void on_exportCSVBtn_clicked();
+
+    void on_enableFilterChkBox_toggled(bool checked);
 
 private:
     Ui::EventLogWidget *ui;

@@ -31,9 +31,13 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     // on exit application stop thread
+    if (thread->isRunning())
+    {
+        thread->quit();
+        thread->wait();
+    }
+
     worker->deleteLater();
-    thread->quit();
-    thread->wait();
 
     delete thread;
     thread = nullptr;

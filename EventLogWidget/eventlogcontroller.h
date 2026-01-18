@@ -23,6 +23,9 @@ public:
 
     void setFlushIntervalMs(int newFlushIntervalMs);
     void setMaxBatchSize(int newMaxBatchSize);
+    void setMaxVisibleRows(int rows);
+
+    void setFilterEnabled(bool enabled);
 
 public slots:
     void setSeverityFilter(const QString& s);

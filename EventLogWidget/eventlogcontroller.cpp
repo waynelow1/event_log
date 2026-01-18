@@ -20,7 +20,8 @@ void EventLogController::initializeDatabase(const QString& dbPath, const QString
 
     m_model = new EventLogModel(dbPath, connectionName, this);
     m_proxy->setSourceModel(m_model->model());
-    m_flushTimer->start(m_flushIntervalMs);
+    m_proxy->setDynamicSortFilter(false);
+    m_flushTimer->start(m_flushIntervalMs);  // flush events to DB
 }
 
 QAbstractItemModel* EventLogController::model() const
@@ -57,13 +58,34 @@ void EventLogController::flushQueuedEvents()
 
     if (m_model->insertBatch(batch))
     {
+        m_model->model()->select();
+        // while (m_model->model()->canFetchMore())
+        // {
+        //     m_model->model()->fetchMore();
+        // }
+        m_proxy->invalidate();
         emit rowsAdded();
     }
+}
+
+void EventLogController::setFilterEnabled(bool enabled)
+{
+    m_proxy->setFilterEnabled(enabled);
 }
 
 void EventLogController::setMaxBatchSize(int newMaxBatchSize)
 {
     m_maxBatchSize = newMaxBatchSize;
+}
+
+void EventLogController::setMaxVisibleRows(int rows)
+{
+    if (!m_model)
+        return;
+
+    flushQueuedEvents();        // ensure DB is up-to-date
+    m_model->setMaxVisibleEvents(rows);
+    m_proxy->invalidate();
 }
 
 void EventLogController::setFlushIntervalMs(int newFlushIntervalMs)

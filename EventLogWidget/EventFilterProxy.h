@@ -12,7 +12,7 @@
 
 class EventFilterProxy : public QSortFilterProxyModel
 {
-     Q_OBJECT
+    Q_OBJECT
 public:
     explicit EventFilterProxy(QObject* parent=nullptr)
         : QSortFilterProxyModel(parent) {}
@@ -25,6 +25,8 @@ public:
     void setToTimestamp(const QDateTime& to);
     bool hasFilter() const;
     bool hasDateFilter() const;
+    void setFilterEnabled(bool enabled);
+    bool filterEnabled() const;
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
@@ -36,6 +38,8 @@ private:
 
     QDateTime m_fromTs;
     QDateTime m_toTs;
+
+    bool m_filterEnabled = false;
 };
 
 

@@ -20,6 +20,12 @@ EventLogWidget::EventLogWidget(QWidget *parent)
 
     ui->fromDateTimeEdit->setDateTime(QDateTime::currentDateTime().addDays(-1));
     ui->toDateTimeEdit->setDateTime(QDateTime::currentDateTime().addDays(1));
+
+    ui->fromDateTimeEdit->setEnabled(false);
+    ui->toDateTimeEdit->setEnabled(false);
+    ui->severityFilterCombo->setEnabled(false);
+    ui->sourceFilterEdit->setEnabled(false);
+    ui->messageFilterEdit->setEnabled(false);
 }
 
 EventLogWidget::~EventLogWidget()
@@ -77,16 +83,18 @@ void EventLogWidget::initializeModel(const QString &databasePath, const QString 
 )");
 
     // set item delegate to color rows with Error in Red
-    delegate = new DisplayViewDelegate(ui->eventLogTableView);
-    ui->eventLogTableView->setItemDelegate(delegate);
+    // delegate = new DisplayViewDelegate(ui->eventLogTableView);
+    // ui->eventLogTableView->setItemDelegate(delegate);
 
-    // make table view scroll automatically to the last row when adding items
-    connect(m_controller, &EventLogController::rowsAdded,
-            this, [this]() {
-                QTimer::singleShot(0,
-                                   ui->eventLogTableView,
-                                   &QTableView::scrollToBottom);
-            });
+    // // make table view scroll automatically to the last row when adding items
+    // connect(m_controller, &EventLogController::rowsAdded,
+    //         this, [this]() {
+    //             auto* v = ui->eventLogTableView;
+    //             bool atBottom = v->verticalScrollBar()->value() == v->verticalScrollBar()->maximum();
+    //             if (atBottom)
+    //                 v->scrollToBottom();
+    //         });
+
 }
 
 void EventLogWidget::setFlushIntervalMs(int newFlushIntervalMs)
@@ -97,6 +105,11 @@ void EventLogWidget::setFlushIntervalMs(int newFlushIntervalMs)
 void EventLogWidget::setMaxBatchSize(int newMaxBatchSize)
 {
     m_controller->setMaxBatchSize(newMaxBatchSize);
+}
+
+void EventLogWidget::setMaxVisibleRows(int rows)
+{
+    m_controller->setMaxVisibleRows(rows);
 }
 
 QString EventLogWidget::eventTypeToString(EVENT_TYPE eventType) const
@@ -175,5 +188,16 @@ void EventLogWidget::on_exportCSVBtn_clicked()
     {
         QMessageBox::warning(this, tr("Export Failed"), tr("Unable to write CSV file."));
     }
+}
+
+void EventLogWidget::on_enableFilterChkBox_toggled(bool checked)
+{
+    m_controller->setFilterEnabled(checked);
+    ui->fromDateTimeEdit->setEnabled(checked);
+    ui->toDateTimeEdit->setEnabled(checked);
+    ui->severityFilterCombo->setEnabled(checked);
+    ui->sourceFilterEdit->setEnabled(checked);
+    ui->messageFilterEdit->setEnabled(checked);
+
 }
 

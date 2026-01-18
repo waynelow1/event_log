@@ -33,9 +33,23 @@ EventLogModel::EventLogModel(const QString& databasePath,
         )
     )");
 
+    // Create a VIEW for UI (last N events only)
+    q.exec(R"(
+        CREATE VIEW IF NOT EXISTS recent_events AS
+            SELECT *
+            FROM events
+            ORDER BY ID DESC
+            LIMIT 1000
+    )");
+
     m_sqlTableModel = new QSqlTableModel(this, db);
-    m_sqlTableModel->setTable("events");
+    m_sqlTableModel->setTable("recent_events");
+    m_sqlTableModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
     m_sqlTableModel->select();
+    while (m_sqlTableModel->canFetchMore())
+        m_sqlTableModel->fetchMore();
 }
 
 bool EventLogModel::insertBatch(const QVector<EventLogEntry>& batch)
@@ -68,7 +82,6 @@ bool EventLogModel::insertBatch(const QVector<EventLogEntry>& batch)
     }
 
     db.commit();
-    m_sqlTableModel->select();
     return true;
 }
 
@@ -116,4 +129,39 @@ bool EventLogModel::exportCSV(const QString& filePath)
           << csvEscape(q.value(3).toString()) << "\n";
 
     return true;
+}
+
+void EventLogModel::setMaxVisibleEvents(int maxEvents)
+{
+    if (maxEvents <= 0)
+        return;
+
+    QSqlDatabase db = m_sqlTableModel->database();
+    QSqlQuery q(db);
+
+    db.transaction();
+
+    // Drop old view
+    q.exec("DROP VIEW IF EXISTS recent_events");
+
+    // Recreate view with new limit
+    QString sql = QString(R"(
+        CREATE VIEW recent_events AS
+        SELECT *
+        FROM events
+        ORDER BY ID DESC
+        LIMIT %1
+    )").arg(maxEvents);
+
+    if (!q.exec(sql))
+    {
+        db.rollback();
+        return;
+    }
+
+    db.commit();
+
+    // Rebind model to refreshed view
+    m_sqlTableModel->setTable("recent_events");
+    m_sqlTableModel->select();
 }

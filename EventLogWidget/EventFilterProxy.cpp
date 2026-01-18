@@ -76,18 +76,27 @@ void EventFilterProxy::setToTimestamp(const QDateTime& to)
 
 bool EventFilterProxy::hasFilter() const
 {
-    return (m_sevFilter != "All" && !m_sevFilter.isEmpty()) ||
+    if (!m_filterEnabled)
+        return false;
+
+    return ((m_sevFilter != "All" && !m_sevFilter.isEmpty()) ||
            !m_srcFilter.isEmpty() ||
-           !m_msgFilter.isEmpty();
+           !m_msgFilter.isEmpty());
 }
 
 bool EventFilterProxy::hasDateFilter() const
 {
-    return m_fromTs.isValid() || m_toTs.isValid();
+    if (!m_filterEnabled)
+        return false;
+
+    return (m_fromTs.isValid() || m_toTs.isValid());
 }
 
 bool EventFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
+    if (!m_filterEnabled)
+        return true;
+
     auto model = sourceModel();
 
     QString tsStr = model->index(sourceRow, 1, sourceParent).data().toString();
@@ -118,4 +127,18 @@ bool EventFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &source
         return false;
 
     return true;
+}
+
+bool EventFilterProxy::filterEnabled() const
+{
+    return m_filterEnabled;
+}
+
+void EventFilterProxy::setFilterEnabled(bool enabled)
+{
+    if (m_filterEnabled == enabled)
+        return;
+
+    m_filterEnabled = enabled;
+    invalidateFilter();
 }

@@ -6,6 +6,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QSqlResult>
 #include <QDateTime>
 #include <QVector>
 #include <QFile>
@@ -40,9 +41,13 @@ public:
     void clearAll();
     bool exportCSV(const QString& filePath);
 
+    void setMaxVisibleEvents(int maxEvents);
+
 private:
     QSqlTableModel* m_sqlTableModel {nullptr};
     QString m_connectionName;
+
+    int m_maxVisibleEvents {1000};
 };
 
 #endif // EVENTLOGMODEL_H
