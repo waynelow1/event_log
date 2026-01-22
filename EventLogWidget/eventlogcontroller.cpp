@@ -34,16 +34,20 @@ bool EventLogController::addEvent(const QDateTime& ts,
                                   const QString& src,
                                   const QString& msg)
 {
-    QMutexLocker lock(&m_mutex);
-    m_queue.push_back({ ts, sev, src, msg });
+    bool shouldFlush = false;
 
-    if (m_queue.size() >= m_maxBatchSize)
     {
+        QMutexLocker lock(&m_mutex);
+        m_queue.push_back({ ts, sev, src, msg });
+        shouldFlush = (m_queue.size() >= m_maxBatchSize);
+    } // mutex released here
+
+    if (shouldFlush)
         flushQueuedEvents();
-    }
 
     return true;
 }
+
 
 void EventLogController::flushQueuedEvents()
 {
